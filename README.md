@@ -320,4 +320,5 @@ Sorularınız için: [email protected]
 
 ---
 
+
 **Not**: Bu proje Gebze Teknik Üniversitesi Bilgisayar Mühendisliği Bölümü bitirme projesidir.
