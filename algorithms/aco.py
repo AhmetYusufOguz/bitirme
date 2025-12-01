@@ -154,7 +154,8 @@ class ACO:
             
             # Rotayı tamamla ve ekle
             if not route.is_empty():
-                route = self.problem.areas[0].__class__.__new__(Solution).calculate_route_metrics(route)
+                temp_solution = Solution(self.problem)
+                route = temp_solution.calculate_route_metrics(route)
                 routes.append(route)
                 vehicle_id += 1
         
