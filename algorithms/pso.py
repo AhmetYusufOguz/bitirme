@@ -197,7 +197,11 @@ class PSO:
         
         # Global best pozisyonu güncelle
         # Çözümden depo atamalarını al
-        self.global_best_position = best_solution.depot_assignments.astype(float)
+        if best_solution.depot_assignments is not None:
+            self.global_best_position = best_solution.depot_assignments.astype(float)
+        else:
+            # Fallback: random position
+            self.global_best_position = np.random.rand(self.problem.num_areas) * self.problem.num_depots
     
     def _calculate_crowding_distances(self, solutions: List[Solution]) -> np.ndarray:
         """

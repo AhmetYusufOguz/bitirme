@@ -44,7 +44,7 @@ def run_cli_mode(args):
     if args.run_pa_lrp:
         algorithms_to_run.append(('PA-LRP', PALRP))
     if args.run_pso:
-        algorithms_to_run.append(('PSO', lambda p: PSOSolver(p, ACOSolver)))
+        algorithms_to_run.append(('PSO', lambda p: PSOSolver(p, ACOSolver, num_particles=30, num_iterations=30)))
     if args.run_aco:
         algorithms_to_run.append(('ACO', ACOSolver))
     if args.run_ap:
