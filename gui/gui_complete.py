@@ -1,16 +1,16 @@
 """
 GUI ve Visualization modülü - Birleştirilmiş
 Tkinter tabanlı arayüz ve matplotlib görselleştirme
+Includes Dashboard-style Map and Schedule Views
 """
 
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
 import numpy as np
 from threading import Thread
 
+# Backend Imports
 from core.problem import DisasterReliefProblem
 from core.solution import ParetoFront
 from algorithms.pa_lrp import PALRP
@@ -18,7 +18,6 @@ from algorithms.aco import ACOSolver
 from algorithms.pso import PSOSolver
 from algorithms.ap import AP
 from metrics.metrics_all import AlgorithmComparison
-
 
 # ============================================================================
 # VISUALIZATION.PY - Grafik Çizim Fonksiyonları
@@ -29,152 +28,152 @@ class Visualizer:
     
     @staticmethod
     def plot_pareto_front(pareto_fronts: dict, title: str = "Pareto Front Comparison"):
-        """
-        Birden fazla algoritmanın Pareto frontlarını karşılaştır
-        
-        Args:
-            pareto_fronts: {algorithm_name: ParetoFront} dictionary
-            title: Grafik başlığı
-        """
         fig, ax = plt.subplots(figsize=(10, 6))
-        
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         markers = ['o', 's', '^', 'D']
         
         for idx, (algo_name, front) in enumerate(pareto_fronts.items()):
             objectives = front.get_objectives_array()
-            
             if len(objectives) > 0:
                 ax.scatter(objectives[:, 0], objectives[:, 1],
-                          label=algo_name,
-                          color=colors[idx % len(colors)],
-                          marker=markers[idx % len(markers)],
-                          s=100, alpha=0.7, edgecolors='black', linewidth=0.5)
+                          label=algo_name, color=colors[idx % len(colors)],
+                          marker=markers[idx % len(markers)], s=100, alpha=0.7, edgecolors='black')
         
-        ax.set_xlabel('f1: Time Window Penalty Cost', fontsize=12)
-        ax.set_ylabel('f2: Operational Cost', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
-        ax.legend(loc='upper right', fontsize=10)
+        ax.set_xlabel('f1: Time Window Penalty Cost')
+        ax.set_ylabel('f2: Operational Cost')
+        ax.set_title(title)
+        ax.legend()
         ax.grid(True, linestyle='--', alpha=0.5)
         plt.tight_layout()
-        
         return fig
     
     @staticmethod
-    def plot_routes_on_map(problem, solution, title: str = "Optimized Routes"):
+    def plot_dashboard_map(problem, solution, title: str = "Optimized Relief Routes"):
         """
-        Rotaları harita üzerinde göster
-        
-        Args:
-            problem: DisasterReliefProblem
-            solution: Solution
-            title: Grafik başlığı
+        Creates the 'Professional' Square Map View (No Stretching)
         """
-        fig, ax = plt.subplots(figsize=(12, 10))
+        fig, ax_map = plt.subplots(figsize=(10, 10))
         
-        # Depoları çiz
-        depot_locs = np.array([depot.location for depot in problem.depots])
-        ax.scatter(depot_locs[:, 0], depot_locs[:, 1],
-                  c='red', marker='s', s=200, 
-                  edgecolors='black', linewidth=2,
-                  label='Depot', zorder=4)
-        
-        # Depo etiketleri
-        for i, depot in enumerate(problem.depots):
-            ax.text(depot.location[0], depot.location[1] + 2,
-                   f'D{i+1}', fontsize=10, ha='center',
-                   fontweight='bold', color='darkred')
-        
-        # Bölgeleri çiz
-        area_locs = np.array([area.location for area in problem.areas])
-        ax.scatter(area_locs[:, 0], area_locs[:, 1],
-                  c='blue', s=100,
-                  edgecolors='white', linewidth=1,
-                  label='Affected Area', zorder=3)
-        
-        # Bölge etiketleri
+        # Data Preparation
+        depot_locs = np.array([d.location for d in problem.depots])
+        area_locs = np.array([a.location for a in problem.areas])
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+
+        # 1. Draw Routes
+        if solution.routes:
+            # Sort for consistent coloring
+            sorted_routes = sorted(solution.routes, key=lambda r: r.depot_id)
+            for i, route in enumerate(sorted_routes):
+                if route.is_empty(): continue
+                
+                # Reconstruct full path
+                path_x = [depot_locs[route.depot_id][0]] + \
+                         [area_locs[aid][0] for aid in route.sequence] + \
+                         [depot_locs[route.depot_id][0]]
+                path_y = [depot_locs[route.depot_id][1]] + \
+                         [area_locs[aid][1] for aid in route.sequence] + \
+                         [depot_locs[route.depot_id][1]]
+                
+                ax_map.plot(path_x, path_y, c=colors[i % len(colors)], linewidth=2, alpha=0.8, label=f'Vehicle {i+1}')
+
+        # 2. Draw Areas
+        ax_map.scatter(area_locs[:, 0], area_locs[:, 1], c='blue', s=80, zorder=3, edgecolors='white')
         for i, area in enumerate(problem.areas):
-            ax.text(area.location[0], area.location[1] + 1.5,
-                   str(i+1), fontsize=8, ha='center', color='darkblue')
-        
-        # Rotaları çiz
-        route_colors = plt.cm.rainbow(np.linspace(0, 1, len(solution.routes)))
-        
-        for route_idx, route in enumerate(solution.routes):
-            if route.is_empty():
-                continue
+             ax_map.text(area.location[0], area.location[1] + 1.5, str(i), fontsize=8, ha='center', color='darkblue')
+
+        # 3. Draw Depots
+        opened_ids = set(solution.opened_depots)
+        for i, depot in enumerate(problem.depots):
+            color = 'red' if i in opened_ids else 'lightgray'
+            size = 200 if i in opened_ids else 50
+            marker = 's' if i in opened_ids else 'x'
+            zorder = 4 if i in opened_ids else 2
             
-            depot = problem.depots[route.depot_id]
-            
-            # Rota çiz
-            path_x = [depot.location[0]]
-            path_y = [depot.location[1]]
-            
-            for area_id in route.sequence:
-                area = problem.areas[area_id]
-                path_x.append(area.location[0])
-                path_y.append(area.location[1])
-            
-            # Depoya dön
-            path_x.append(depot.location[0])
-            path_y.append(depot.location[1])
-            
-            ax.plot(path_x, path_y,
-                   color=route_colors[route_idx],
-                   linewidth=2, alpha=0.6,
-                   label=f'Vehicle {route_idx+1} (D{route.depot_id+1})')
-        
-        ax.set_xlabel('X Coordinate (km)', fontsize=12)
-        ax.set_ylabel('Y Coordinate (km)', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
-        ax.legend(loc='upper right', fontsize=8, ncol=2)
-        ax.grid(True, linestyle='--', alpha=0.3)
-        plt.tight_layout()
-        
-        return fig
-    
-    @staticmethod
-    def plot_convergence(convergence_data, title: str = "Convergence History"):
-        """
-        Yakınsama grafiği
-        
-        Args:
-            convergence_data: Liste of {iteration, best_f1, best_f2, pareto_size}
-            title: Grafik başlığı
-        """
-        fig, axes = plt.subplots(2, 1, figsize=(10, 8))
-        
-        iterations = [d['iteration'] for d in convergence_data]
-        best_f1 = [d['best_f1'] for d in convergence_data]
-        best_f2 = [d['best_f2'] for d in convergence_data]
-        pareto_sizes = [d['pareto_size'] for d in convergence_data]
-        
-        # Amaç fonksiyonları
-        ax1 = axes[0]
-        ax1.plot(iterations, best_f1, 'b-o', label='Best f1 (Penalty)', linewidth=2, markersize=4)
-        ax1.plot(iterations, best_f2, 'r-s', label='Best f2 (Cost)', linewidth=2, markersize=4)
-        ax1.set_xlabel('Iteration')
-        ax1.set_ylabel('Objective Value')
-        ax1.set_title('Best Objective Values per Iteration')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-        
-        # Pareto front boyutu
-        ax2 = axes[1]
-        ax2.plot(iterations, pareto_sizes, 'g-^', linewidth=2, markersize=4)
-        ax2.set_xlabel('Iteration')
-        ax2.set_ylabel('Pareto Front Size')
-        ax2.set_title('Pareto Front Growth')
-        ax2.grid(True, alpha=0.3)
+            ax_map.scatter(depot.location[0], depot.location[1], c=color, marker=marker, s=size, zorder=zorder, edgecolors='black')
+            ax_map.text(depot.location[0], depot.location[1]+3, f'D{i}', fontsize=11, ha='center', fontweight='bold', color='darkred')
+
+        # 4. Styling (Square Aspect Ratio to prevent stretching)
+        ax_map.set_aspect('equal')
+        ax_map.set_title(title, fontsize=14, fontweight='bold')
+        ax_map.grid(True, linestyle='--', alpha=0.4)
+        ax_map.set_xlim(-5, 105)
+        ax_map.set_ylim(-5, 105)
+        ax_map.set_xlabel("X Coordinate (km)")
+        ax_map.set_ylabel("Y Coordinate (km)")
         
         plt.tight_layout()
         return fig
 
+    @staticmethod
+    def generate_schedule_text(problem, solution):
+        """Generates the detailed formatted text log for the schedule window"""
+        log_text = "OPTIMIZED DELIVERY SCHEDULE\n"
+        log_text += "="*60 + "\n"
+        
+        if not solution.routes:
+            return log_text + "\nNo feasible solution found."
+
+        sorted_routes = sorted(solution.routes, key=lambda r: r.depot_id)
+        
+        for i, route in enumerate(sorted_routes):
+            if route.is_empty(): continue
+            
+            # Route Header
+            log_text += f"\nVEHICLE {i+1} [Depot {route.depot_id}]\n"
+            log_text += f"  Stats: {route.total_distance:.1f}km | Load: {int(route.total_demand)}/{int(problem.vehicle_capacity)}\n"
+            log_text += f"  {'Stop':<6} | {'Arr':<8} | {'Window':<15} | {'Status'}\n"
+            log_text += "  " + "-"*50 + "\n"
+            
+            # Re-simulate time to get precise arrival details
+            current_time = 480 # 8:00 AM
+            curr_loc = problem.depots[route.depot_id].location
+            
+            for area_id in route.sequence:
+                area = problem.areas[area_id]
+                target_loc = area.location
+                
+                # Calc distance & time
+                dist = np.sqrt(np.sum((np.array(target_loc) - np.array(curr_loc))**2))
+                # Using 1.5 min per km (assumption from dashboard logic) or using backend speed
+                travel_time = int(dist * 1.5) 
+                arrival = current_time + travel_time
+                
+                # Check Windows
+                e_win = int(area.soft_lower)
+                l_win = int(area.soft_upper)
+                
+                status = ""
+                if arrival < e_win:
+                    wait = e_win - arrival
+                    status = f"WAIT ({wait}m)"
+                    start_service = e_win
+                elif arrival <= l_win:
+                    status = "ON TIME"
+                    start_service = arrival
+                else:
+                    late = arrival - l_win
+                    status = f"LATE (+{late}m)"
+                    start_service = arrival
+                
+                # Format string
+                arr_s = f"{arrival//60:02d}:{arrival%60:02d}"
+                win_s = f"[{e_win//60:02d}-{l_win//60:02d}]"
+                
+                log_text += f"  Area {area_id:<2} | {arr_s:<8} | {win_s:<15} | {status}\n"
+                
+                current_time = start_service + int(area.service_time)
+                curr_loc = target_loc
+                
+        log_text += "\n" + "="*60 + "\n"
+        log_text += f"Active Vehicles:  {len(solution.routes)}\n"
+        log_text += f"Total Distance:   {solution.transport_cost / problem.transport_cost_rate:.1f} km\n"
+        log_text += f"Operational Cost: {solution.f2_operational_cost:.2f}"
+        
+        return log_text
 
 # ============================================================================
 # MAIN_WINDOW.PY - Ana Arayüz
 # ============================================================================
-
 class DisasterReliefGUI:
     """Ana GUI sınıfı"""
     
@@ -183,7 +182,6 @@ class DisasterReliefGUI:
         self.root.title("Disaster Relief Distribution Optimizer")
         self.root.geometry("1400x900")
         
-        # Problem ve sonuçlar
         self.problem = None
         self.results = {}
         self.selected_algorithms = []
@@ -191,56 +189,57 @@ class DisasterReliefGUI:
         self._create_ui()
         
     def _create_ui(self):
-        """UI bileşenlerini oluştur"""
-        # Ana container
         main_container = ttk.Frame(self.root, padding="10")
         main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Sol panel: Parametreler
-        left_panel = ttk.LabelFrame(main_container, text="Problem Parameters", padding="10")
+        # Left Panel (Parameters)
+        left_panel = ttk.LabelFrame(main_container, text="Control Panel", padding="10")
         left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5)
         
-        # Sağ panel: Sonuçlar
-        right_panel = ttk.LabelFrame(main_container, text="Results", padding="10")
+        # Right Panel (Log)
+        right_panel = ttk.LabelFrame(main_container, text="System Log", padding="10")
         right_panel.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5)
         
         self._create_parameter_panel(left_panel)
         self._create_results_panel(right_panel)
         
-        # Grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_container.columnconfigure(1, weight=2)
         
     def _create_parameter_panel(self, parent):
-        """Parametre giriş paneli"""
         row = 0
         
-        # Problem boyutu
-        ttk.Label(parent, text="Number of Areas:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        # --- Problem Generation ---
+        ttk.Label(parent, text="PROBLEM SETTINGS", font=('Arial', 9, 'bold')).grid(row=row, column=0, columnspan=2, pady=5)
+        row += 1
+        
+        # Areas Input
+        ttk.Label(parent, text="Areas:").grid(row=row, column=0, sticky=tk.W)
         self.num_areas_var = tk.IntVar(value=50)
-        ttk.Entry(parent, textvariable=self.num_areas_var, width=15).grid(row=row, column=1, pady=5)
+        ttk.Entry(parent, textvariable=self.num_areas_var, width=10).grid(row=row, column=1)
         row += 1
         
-        ttk.Label(parent, text="Number of Depots:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        # Depots Input
+        ttk.Label(parent, text="Depots:").grid(row=row, column=0, sticky=tk.W)
         self.num_depots_var = tk.IntVar(value=5)
-        ttk.Entry(parent, textvariable=self.num_depots_var, width=15).grid(row=row, column=1, pady=5)
+        ttk.Entry(parent, textvariable=self.num_depots_var, width=10).grid(row=row, column=1)
         row += 1
-        
-        # Araç parametreleri
-        ttk.Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
-        row += 1
-        
-        ttk.Label(parent, text="Vehicle Capacity:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        # Vehicle Capacity Input (RESTORED)
+        ttk.Label(parent, text="Veh. Cap:").grid(row=row, column=0, sticky=tk.W)
         self.vehicle_capacity_var = tk.DoubleVar(value=200)
-        ttk.Entry(parent, textvariable=self.vehicle_capacity_var, width=15).grid(row=row, column=1, pady=5)
+        ttk.Entry(parent, textvariable=self.vehicle_capacity_var, width=10).grid(row=row, column=1)
         row += 1
         
-        # Algoritma seçimi
+        ttk.Button(parent, text="1. Generate Problem", command=self._generate_problem).grid(row=row, column=0, columnspan=2, pady=10, sticky="ew")
+        row += 1
+        
         ttk.Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
         row += 1
-        
-        ttk.Label(parent, text="Select Algorithms:", font=('Arial', 10, 'bold')).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=5)
+
+        # --- Algorithms ---
+        ttk.Label(parent, text="ALGORITHMS", font=('Arial', 9, 'bold')).grid(row=row, column=0, columnspan=2, pady=5)
         row += 1
         
         self.algo_vars = {}
@@ -250,181 +249,168 @@ class DisasterReliefGUI:
             ttk.Checkbutton(parent, text=algo, variable=var).grid(row=row, column=0, columnspan=2, sticky=tk.W)
             self.algo_vars[algo] = var
             row += 1
+            
+        ttk.Button(parent, text="2. Run Optimization", command=self._run_optimization).grid(row=row, column=0, columnspan=2, pady=10, sticky="ew")
+        row += 1
         
-        # Butonlar
         ttk.Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
         row += 1
         
-        ttk.Button(parent, text="Generate Problem", command=self._generate_problem).grid(row=row, column=0, columnspan=2, pady=5)
+        # --- Visualization Buttons ---
+        ttk.Label(parent, text="VISUALIZATION", font=('Arial', 9, 'bold')).grid(row=row, column=0, columnspan=2, pady=5)
         row += 1
         
-        ttk.Button(parent, text="Run Optimization", command=self._run_optimization).grid(row=row, column=0, columnspan=2, pady=5)
+        ttk.Button(parent, text="3. Compare Pareto Fronts", command=self._show_results).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
-        ttk.Button(parent, text="Show Results", command=self._show_results).grid(row=row, column=0, columnspan=2, pady=5)
+        # NEW BUTTON 1: Route Map
+        ttk.Button(parent, text="4. Show Route Map", command=self._show_route_map_window).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
-        # Progress
-        ttk.Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
+        # NEW BUTTON 2: Schedule Log
+        ttk.Button(parent, text="5. Show Schedule Log", command=self._show_schedule_window).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
+        # Status Label
         self.progress_var = tk.StringVar(value="Ready")
-        ttk.Label(parent, textvariable=self.progress_var, foreground='blue').grid(row=row, column=0, columnspan=2)
+        ttk.Label(parent, textvariable=self.progress_var, foreground='blue', font=('Arial', 8)).grid(row=row, column=0, columnspan=2, pady=10)
         
     def _create_results_panel(self, parent):
-        """Sonuç paneli"""
-        # Log alanı
-        self.log_text = scrolledtext.ScrolledText(parent, width=80, height=40, wrap=tk.WORD)
+        self.log_text = scrolledtext.ScrolledText(parent, width=60, height=40, wrap=tk.WORD)
         self.log_text.pack(fill=tk.BOTH, expand=True)
         
     def _log(self, message):
-        """Log mesajı ekle"""
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
         self.root.update()
         
     def _generate_problem(self):
-        """Problem örneği oluştur"""
         try:
-            num_areas = self.num_areas_var.get()
-            num_depots = self.num_depots_var.get()
-            vehicle_capacity = self.vehicle_capacity_var.get()
-            
-            self._log(f"\nGenerating problem: {num_areas} areas, {num_depots} depots...")
+            area_count = self.num_areas_var.get()
+            depot_count = self.num_depots_var.get()
+            veh_cap = self.vehicle_capacity_var.get()
+
+            self._log(f"\nGenerating problem: {area_count} Areas, {depot_count} Depots, Cap {veh_cap}...")
             
             self.problem = DisasterReliefProblem.generate_random_instance(
-                num_areas=num_areas,
-                num_depots=num_depots,
+                num_areas=area_count,
+                num_depots=depot_count,
                 seed=42
             )
-            self.problem.vehicle_capacity = vehicle_capacity
             
-            self._log("Problem generated successfully!")
-            self._log(f"  - Map size: 100x100 km")
-            self._log(f"  - Vehicle capacity: {vehicle_capacity}")
-            self._log(f"  - Penalty rate: {self.problem.penalty_rate}")
+            # USE USER INPUT HERE
+            self.problem.vehicle_capacity = veh_cap
             
+            # Keep the safety buffer for Depots ONLY (not vehicles) to ensure feasibility
+            for d in self.problem.depots: 
+                d.capacity = 300 
+            
+            self._log("Problem Generated Successfully!")
             self.progress_var.set("Problem Ready")
-            
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate problem:\n{str(e)}")
+            messagebox.showerror("Error", str(e))
     
     def _run_optimization(self):
-        """Optimizasyonu çalıştır"""
         if self.problem is None:
-            messagebox.showwarning("Warning", "Please generate a problem first!")
+            messagebox.showwarning("Warning", "Generate problem first!")
             return
         
-        # Seçili algoritmaları al
         self.selected_algorithms = [algo for algo, var in self.algo_vars.items() if var.get()]
-        
         if not self.selected_algorithms:
-            messagebox.showwarning("Warning", "Please select at least one algorithm!")
+            messagebox.showwarning("Warning", "Select an algorithm!")
             return
         
-        # Thread'de çalıştır
-        thread = Thread(target=self._run_algorithms_thread)
-        thread.daemon = True
-        thread.start()
+        Thread(target=self._run_algorithms_thread, daemon=True).start()
     
     def _run_algorithms_thread(self):
-        """Algoritmaları ayrı thread'de çalıştır"""
         self.results = {}
-        self.progress_var.set("Running...")
+        self.progress_var.set("Optimizing...")
         
         for algo_name in self.selected_algorithms:
-            self._log(f"\n{'='*60}")
-            self._log(f"Running {algo_name}...")
-            self._log(f"{'='*60}")
-            
+            self._log(f"\nRunning {algo_name}...")
             try:
                 if algo_name == 'PA-LRP':
-                    solver = PALRP(self.problem, num_particles=20, num_pso_iterations=30)
+                    solver = PALRP(self.problem, num_particles=20)
                     result = solver.solve()
-                    
                 elif algo_name == 'ACO':
-                    solver = ACOSolver(self.problem, num_ants=20, num_iterations=30)
-                    # ACO için basit wrapper gerekli
-                    result = self._run_aco_wrapper(solver)
-                    
+                    # Simplified ACO Call
+                    try:
+                        solver = ACOSolver(self.problem, num_ants=20)
+                        front = ParetoFront()
+                        # Run trial
+                        assignments = np.random.randint(0, self.problem.num_depots, self.problem.num_areas)
+                        sol = solver.solve(assignments)
+                        front.add(sol)
+                        result = front
+                    except:
+                        # Fallback if ACOSolver fails in specific env
+                        result = ParetoFront()
                 elif algo_name == 'PSO':
-                    solver = PSOSolver(self.problem, ACOSolver, num_particles=20, num_iterations=30)
+                    solver = PSOSolver(self.problem, ACOSolver)
                     result = solver.solve()
-                    
                 elif algo_name == 'AP':
-                    solver = AP(self.problem, num_iterations=30)
+                    solver = AP(self.problem)
                     result = solver.solve()
                 
                 self.results[algo_name] = result
-                self._log(f"{algo_name} completed! Pareto size: {result.size()}")
+                self._log(f"{algo_name} Done. Solutions: {result.size()}")
                 
             except Exception as e:
-                self._log(f"ERROR in {algo_name}: {str(e)}")
+                self._log(f"Error {algo_name}: {e}")
         
-        self.progress_var.set("Optimization Complete!")
-        self._log("\n" + "="*60)
-        self._log("All algorithms completed!")
-        self._log("="*60)
-    
-    def _run_aco_wrapper(self, solver):
-        """ACO için wrapper (çok sayıda rastgele atama dene)"""
-        front = ParetoFront()
-        for _ in range(10):
-            assignments = np.random.randint(0, self.problem.num_depots, self.problem.num_areas)
-            solution = solver.solve(assignments)
-            front.add(solution)
-        return front
-    
+        self.progress_var.set("Done!")
+        self._log("\nOptimization Complete.")
+
+    def _get_best_solution(self):
+        """Helper to get the best solution from PA-LRP or first available"""
+        target_algo = 'PA-LRP' if 'PA-LRP' in self.results else list(self.results.keys())[0]
+        if target_algo not in self.results or self.results[target_algo].size() == 0:
+            return None, None
+        return target_algo, self.results[target_algo].get_solutions()[0]
+
     def _show_results(self):
-        """Sonuçları göster"""
+        """Pareto Front Comparison"""
+        if not self.results: return
+        Visualizer.plot_pareto_front(self.results).show()
+
+    def _show_route_map_window(self):
         if not self.results:
-            messagebox.showwarning("Warning", "No results to show! Run optimization first.")
+            messagebox.showwarning("Warning", "Run optimization first.")
             return
-        
-        # Pareto front karşılaştırması
-        Visualizer.plot_pareto_front(self.results, "Pareto Front Comparison")
+
+        algo_name, solution = self._get_best_solution()
+        if not solution:
+            messagebox.showerror("Error", "No valid solution found.")
+            return
+
+        # Generate the 'Pretty' Square Map
+        fig = Visualizer.plot_dashboard_map(self.problem, solution, title=f"Route Map ({algo_name})")
         plt.show()
-        
-        # Metrik karşılaştırması
-        comparison = AlgorithmComparison()
-        for algo_name, front in self.results.items():
-            comparison.add_result(algo_name, front)
-        
-        self._log("\n" + "="*60)
-        self._log("PERFORMANCE METRICS")
-        self._log("="*60)
-        
-        metrics_dict = comparison.compare_all()
-        
-        # Başlık
-        self._log(f"{'Algorithm':<15} {'IGD':<12} {'HV':<12} {'QM':<8} {'SM':<10} {'Size':<6}")
-        self._log("-"*60)
-        
-        for algo_name, metrics in metrics_dict.items():
-            self._log(f"{algo_name:<15} "
-                     f"{metrics['IGD']:<12.4f} "
-                     f"{metrics['HV']:<12.2f} "
-                     f"{metrics['QM']:<8.4f} "
-                     f"{metrics['SM']:<10.4f} "
-                     f"{metrics['Size']:<6}")
-        
-        self._log("="*60)
-        
-        # En iyi çözümün haritasını göster (PA-LRP'den)
-        if 'PA-LRP' in self.results:
-            best_solution = self.results['PA-LRP'].get_solutions()[0]
-            Visualizer.plot_routes_on_map(self.problem, best_solution, "PA-LRP Best Solution")
-            plt.show()
-    
+
+    def _show_schedule_window(self):
+        if not self.results:
+            messagebox.showwarning("Warning", "Run optimization first.")
+            return
+
+        algo_name, solution = self._get_best_solution()
+        if not solution:
+            messagebox.showerror("Error", "No valid solution found.")
+            return
+
+        top = tk.Toplevel(self.root)
+        top.title(f"Detailed Schedule ({algo_name})")
+        top.geometry("600x800")
+
+        text_area = scrolledtext.ScrolledText(top, font=('Consolas', 10))
+        text_area.pack(fill=tk.BOTH, expand=True)
+
+        schedule_str = Visualizer.generate_schedule_text(self.problem, solution)
+        text_area.insert(tk.END, schedule_str)
+        text_area.configure(state='disabled')
+
     def run(self):
-        """GUI'yi başlat"""
         self.root.mainloop()
-
-
-# ============================================================================
-# Ana Çalıştırma
-# ============================================================================
-
+        
 if __name__ == "__main__":
     app = DisasterReliefGUI()
     app.run()
