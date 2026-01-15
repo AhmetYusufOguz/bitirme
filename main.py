@@ -29,7 +29,7 @@ def run_cli_mode(args):
     print(f"  - Depots: {args.num_depots}")
     print(f"  - Vehicle capacity: {args.vehicle_capacity}")
     
-    problem = DisasterReliefProblem.generate_random_instance(
+    problem = DisasterReliefProblem. generate_random_instance(
         num_areas=args.num_areas,
         num_depots=args.num_depots,
         seed=args.seed
@@ -44,7 +44,7 @@ def run_cli_mode(args):
     if args.run_pa_lrp:
         algorithms_to_run.append(('PA-LRP', PALRP))
     if args.run_pso:
-        algorithms_to_run.append(('PSO', lambda p: PSOSolver(p, ACOSolver, num_particles=30, num_iterations=30)))
+        algorithms_to_run. append(('PSO', lambda p: PSOSolver(p, ACOSolver, num_particles=30, num_iterations=30)))
     if args.run_aco:
         algorithms_to_run.append(('ACO', ACOSolver))
     if args.run_ap:
@@ -65,45 +65,45 @@ def run_cli_mode(args):
         if algo_name == 'PA-LRP':
             solver = AlgoClass(
                 problem,
-                num_particles=args.num_particles,
+                num_particles=args. num_particles,
                 num_pso_iterations=args.num_iterations,
                 num_ants=args.num_ants,
                 num_aco_iterations=20
             )
             pareto_front = solver.solve()
             
-        elif algo_name == 'PSO':
+        elif algo_name == 'PSO': 
             solver = AlgoClass(problem)
             pareto_front = solver.solve()
             
         elif algo_name == 'ACO':
             # ACO için birden fazla rastgele atama dene
-            from core.solution import ParetoFront
-            solver = AlgoClass(problem, num_ants=args.num_ants, num_iterations=args.num_iterations)
+            from core. solution import ParetoFront
+            solver = AlgoClass(problem, num_ants=args. num_ants, num_iterations=args.num_iterations)
             pareto_front = ParetoFront()
             
             for trial in range(10):
                 assignments = np.random.randint(0, problem.num_depots, problem.num_areas)
                 solution = solver.solve(assignments)
                 pareto_front.add(solution)
-                print(f"  Trial {trial+1}/10: f1={solution.f1_penalty_cost:.2f}, f2={solution.f2_operational_cost:.2f}")
+                print(f"  Trial {trial+1}/10: f1={solution.f1_penalty_cost:.2f}, f2={solution.f2_operational_cost:. 2f}")
         
-        elif algo_name == 'AP':
-            solver = AlgoClass(problem, num_iterations=args.num_iterations)
+        elif algo_name == 'AP': 
+            solver = AlgoClass(problem, num_iterations=args. num_iterations)
             pareto_front = solver.solve()
         
         results[algo_name] = pareto_front
-        comparison.add_result(algo_name, pareto_front)
+        comparison.add_result(algo_name, pareto_front)  # ← METRİK İÇİN EKLE
         
         print(f"\n{algo_name} completed!")
         print(f"Pareto front size: {pareto_front.size()}")
     
-    # Sonuçları göster
+    # *** YENİ: Performans metriklerini yazdır ***
     print("\n" + "="*80)
-    print("RESULTS SUMMARY")
+    print("PERFORMANCE METRICS")
     print("="*80 + "\n")
     
-    comparison.print_comparison()
+    comparison.print_comparison()  # ← TABLO YAZDIR
     
     # Validator ile en iyi çözümü kontrol et
     if 'PA-LRP' in results and results['PA-LRP'].size() > 0:
@@ -120,7 +120,7 @@ def run_cli_mode(args):
         print(f"Number of routes: {stats['num_routes']}")
         print(f"Average vehicle utilization: {stats['avg_vehicle_utilization']*100:.2f}%")
         print(f"\nObjective values:")
-        print(f"  f1 (Penalty): {stats['f1_penalty_cost']:.2f}")
+        print(f"  f1 (Penalty): {stats['f1_penalty_cost']:. 2f}")
         print(f"  f2 (Operational): {stats['f2_operational_cost']:.2f}")
         print(f"    - Depot opening: {stats['depot_opening_cost']:.2f}")
         print(f"    - Vehicle fixed: {stats['vehicle_fixed_cost']:.2f}")
@@ -138,23 +138,36 @@ def run_cli_mode(args):
         print("="*80 + "\n")
         
         # Pareto front karşılaştırması
-        Visualizer.plot_pareto_front(results, "Algorithm Comparison - Pareto Fronts")
+        Visualizer. plot_pareto_front(results, "Algorithm Comparison - Pareto Fronts")
         plt.savefig('pareto_comparison.png', dpi=150, bbox_inches='tight')
         print("Saved: pareto_comparison.png")
         
         # En iyi çözümün haritası
-        if 'PA-LRP' in results and results['PA-LRP'].size() > 0:
+        if 'PA-LRP' in results and results['PA-LRP']. size() > 0:
             best_solution = results['PA-LRP'].get_solutions()[0]
-            Visualizer.plot_routes_on_map(problem, best_solution, "PA-LRP - Best Solution Routes")
+            Visualizer.plot_dashboard_map(problem, best_solution, "PA-LRP - Best Solution Routes")
             plt.savefig('best_solution_routes.png', dpi=150, bbox_inches='tight')
             print("Saved: best_solution_routes.png")
         
         # Yakınsama grafiği (PA-LRP için)
         if 'PA-LRP' in results and hasattr(solver, 'get_convergence_data'):
             convergence = solver.get_convergence_data()
-            Visualizer.plot_convergence(convergence, "PA-LRP Convergence History")
-            plt.savefig('convergence.png', dpi=150, bbox_inches='tight')
-            print("Saved: convergence.png")
+            if convergence:  # Boş değilse
+                fig, ax = plt.subplots(figsize=(10, 6))
+                iterations = [c['iteration'] for c in convergence]
+                best_f1 = [c['best_f1'] for c in convergence]
+                best_f2 = [c['best_f2'] for c in convergence]
+                
+                ax.plot(iterations, best_f1, 'o-', label='Best f1 (Penalty)', color='#1f77b4')
+                ax.plot(iterations, best_f2, 's-', label='Best f2 (Cost)', color='#ff7f0e')
+                ax.set_xlabel('Iteration')
+                ax.set_ylabel('Objective Value')
+                ax.set_title('PA-LRP Convergence History')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                plt.tight_layout()
+                plt.savefig('convergence. png', dpi=150, bbox_inches='tight')
+                print("Saved: convergence.png")
         
         if not args.no_display:
             plt.show()

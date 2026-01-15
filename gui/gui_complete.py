@@ -388,6 +388,8 @@ class DisasterReliefGUI:
         """Akıllı Kıyaslama: Maliyet yakınsa Çözüm Sayısına bakar"""
         self.results = {}
         self.progress_var.set("Running...")
+
+        comparison = AlgorithmComparison()
         
         # Takip değişkenleri
         global_best_solution = None
@@ -416,6 +418,7 @@ class DisasterReliefGUI:
                     result = solver.solve()
                 
                 self.results[algo_name] = result
+                comparison.add_result(algo_name, result)
                 
                 if result.size() > 0:
                     solutions = result.get_solutions()
@@ -486,6 +489,24 @@ class DisasterReliefGUI:
         self._log(f"Optimization Complete! Winner is: {global_best_algo_name}")
         self._log(f"(Selected because Cost={global_best_cost:.2f} and ParetoSize={global_best_pareto_size})")
         self._log("="*60)
+
+        if len(self.results) > 1:  # Birden fazla algoritma varsa
+            self._log("\n" + "="*60)
+            self._log("PERFORMANCE METRICS")
+            self._log("="*60)
+            
+            # Metrikleri string olarak al
+            import io
+            import sys
+            old_stdout = sys.stdout
+            sys.stdout = buffer = io.StringIO()
+            
+            comparison.print_comparison()
+            
+            output = buffer.getvalue()
+            sys.stdout = old_stdout
+            
+            self._log(output)
 
 
     def _run_aco_wrapper(self, solver):

@@ -233,15 +233,33 @@ class SMMetric:
         Args:
             pareto_front: Değerlendirilecek Pareto frontu
             
-        Returns:
+        Returns: 
             SM değeri
         """
         objectives = pareto_front.get_objectives_array()
         
-        if len(objectives) <= 1:
-            return 0.0
+        # *** DÜZELTME: 2'den az çözüm varsa SM hesaplanamaz ***
+        if len(objectives) < 2:
+            return float('nan')  # veya 0.0
         
         n = len(objectives)
+        
+        # *** DÜZELTME:  Normalizasyon ekle ***
+        # Objective'leri normalize et (0-1 arası)
+        f1_min, f1_max = objectives[: , 0].min(), objectives[:, 0].max()
+        f2_min, f2_max = objectives[:, 1]. min(), objectives[:, 1].max()
+        
+        # Eğer tüm değerler aynıysa (range=0), SM=0
+        if (f1_max - f1_min) < 1e-10 and (f2_max - f2_min) < 1e-10:
+            return 0.0  # Tüm çözümler aynı nokta
+        
+        # Normalize et
+        normalized = objectives. copy()
+        if f1_max > f1_min:
+            normalized[:, 0] = (objectives[:, 0] - f1_min) / (f1_max - f1_min)
+        if f2_max > f2_min:
+            normalized[: , 1] = (objectives[: , 1] - f2_min) / (f2_max - f2_min)
+        
         distances = []
         
         # Her çözüm için en yakın komşusuna mesafe
@@ -251,7 +269,7 @@ class SMMetric:
             for j in range(n):
                 if i != j:
                     # Manhattan distance (makaledeki gibi)
-                    distance = np.sum(np.abs(objectives[i] - objectives[j]))
+                    distance = np.sum(np.abs(normalized[i] - normalized[j]))
                     if distance < min_distance:
                         min_distance = distance
             
@@ -260,8 +278,15 @@ class SMMetric:
         # Ortalama mesafe
         d_mean = np.mean(distances)
         
+        # *** DÜZELTME:  Sıfıra bölme kontrolü ***
+        if d_mean < 1e-10:
+            return 0.0  # Tüm mesafeler sıfır
+        
         # Standart sapma
-        spacing = np.sqrt(np.sum((distances - d_mean) ** 2) / (n - 1))
+        if n > 1:
+            spacing = np.sqrt(np.sum((np.array(distances) - d_mean) ** 2) / (n - 1))
+        else:
+            spacing = 0.0
         
         return spacing
 
