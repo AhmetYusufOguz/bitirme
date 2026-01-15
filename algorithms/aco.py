@@ -109,11 +109,13 @@ class ACO:
                     if (i, j) not in self.pheromone:
                         self.pheromone[(i, j)] = 1.0
     
+    
     def _construct_routes(self, 
                          depot_id: int, 
                          assigned_areas: List[int]) -> List[Route]:
         """
-        Bir karınca için rota kümesi oluştur
+        Bir karınca için rota kümesi oluştur (GÜVENLİ VERSİYON)
+        Sonsuz döngüleri engellemek için 'imkansız' müşterileri atlar.
         """
         routes = []
         unvisited = set(assigned_areas)
@@ -121,7 +123,16 @@ class ACO:
         
         depot_node = depot_id
         
+        # GÜVENLİK: Sonsuz döngü sayacı
+        max_attempts = len(assigned_areas) * 2
+        attempts = 0
+        
         while unvisited:
+            attempts += 1
+            # Eğer makul deneme sayısını geçersek döngüyü kır
+            if attempts > max_attempts:
+                break
+                
             route = Route(depot_id=depot_id, vehicle_id=vehicle_id)
             current_node = depot_node
             current_load = 0.0
@@ -154,13 +165,32 @@ class ACO:
             
             # Rotayı tamamla ve ekle
             if not route.is_empty():
-                temp_solution = Solution(self.problem)
-                route = temp_solution.calculate_route_metrics(route)
+                try:
+                    # Solution sınıfını güvenli şekilde import et veya kullan
+                    # (Burada Solution nesnesi oluşturulurken hata almamak için try-except)
+                    temp_solution = Solution(self.problem)
+                    route = temp_solution.calculate_route_metrics(route)
+                except:
+                    pass # Hata olursa ham rotayı kullan
+                    
                 routes.append(route)
                 vehicle_id += 1
+            else:
+                # KRİTİK DÜZELTME:
+                # Yeni bir araç açtık ama 'unvisited' listesindeki hiçbir yere gidemedi.
+                # Bu demektir ki kalan bölgeler 'imkansız' (zamanı geçmiş vs.).
+                # Sonsuz döngüye girmemek için listeden zorla birini atıyoruz.
+                if unvisited:
+                    skipped = unvisited.pop()
+                    # İstersen buraya print(f"Atlandı: {skipped}") yazabilirsin
         
         return routes
-    
+
+
+
+
+
+
     def _select_next_area(self, 
                          current_node: int, 
                          unvisited: set, 

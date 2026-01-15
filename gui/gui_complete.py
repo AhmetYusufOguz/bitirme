@@ -14,20 +14,20 @@ from threading import Thread
 from core.problem import DisasterReliefProblem
 from core.solution import ParetoFront
 from algorithms.pa_lrp import PALRP
-from algorithms.aco import ACOSolver
+from algorithms. aco import ACOSolver
 from algorithms.pso import PSOSolver
 from algorithms.ap import AP
 from metrics.metrics_all import AlgorithmComparison
 
 # ============================================================================
-# VISUALIZATION.PY - Grafik Çizim Fonksiyonları
+# VISUALIZATION. PY - Grafik Çizim Fonksiyonları
 # ============================================================================
 
 class Visualizer:
     """Görselleştirme fonksiyonları"""
     
     @staticmethod
-    def plot_pareto_front(pareto_fronts: dict, title: str = "Pareto Front Comparison"):
+    def plot_pareto_front(pareto_fronts:  dict, title: str = "Pareto Front Comparison"):
         fig, ax = plt.subplots(figsize=(10, 6))
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         markers = ['o', 's', '^', 'D']
@@ -35,7 +35,7 @@ class Visualizer:
         for idx, (algo_name, front) in enumerate(pareto_fronts.items()):
             objectives = front.get_objectives_array()
             if len(objectives) > 0:
-                ax.scatter(objectives[:, 0], objectives[:, 1],
+                ax.scatter(objectives[: , 0], objectives[:, 1],
                           label=algo_name, color=colors[idx % len(colors)],
                           marker=markers[idx % len(markers)], s=100, alpha=0.7, edgecolors='black')
         
@@ -68,13 +68,13 @@ class Visualizer:
                 
                 # Reconstruct full path
                 path_x = [depot_locs[route.depot_id][0]] + \
-                         [area_locs[aid][0] for aid in route.sequence] + \
+                         [area_locs[aid][0] for aid in route. sequence] + \
                          [depot_locs[route.depot_id][0]]
                 path_y = [depot_locs[route.depot_id][1]] + \
                          [area_locs[aid][1] for aid in route.sequence] + \
                          [depot_locs[route.depot_id][1]]
                 
-                ax_map.plot(path_x, path_y, c=colors[i % len(colors)], linewidth=2, alpha=0.8, label=f'Vehicle {i+1}')
+                ax_map. plot(path_x, path_y, c=colors[i % len(colors)], linewidth=2, alpha=0.8, label=f'Vehicle {i+1}')
 
         # 2. Draw Areas
         ax_map.scatter(area_locs[:, 0], area_locs[:, 1], c='blue', s=80, zorder=3, edgecolors='white')
@@ -113,7 +113,7 @@ class Visualizer:
         if not solution.routes:
             return log_text + "\nNo feasible solution found."
 
-        sorted_routes = sorted(solution.routes, key=lambda r: r.depot_id)
+        sorted_routes = sorted(solution.routes, key=lambda r: r. depot_id)
         
         for i, route in enumerate(sorted_routes):
             if route.is_empty(): continue
@@ -121,11 +121,11 @@ class Visualizer:
             # Route Header
             log_text += f"\nVEHICLE {i+1} [Depot {route.depot_id}]\n"
             log_text += f"  Stats: {route.total_distance:.1f}km | Load: {int(route.total_demand)}/{int(problem.vehicle_capacity)}\n"
-            log_text += f"  {'Stop':<6} | {'Arr':<8} | {'Window':<15} | {'Status'}\n"
+            log_text += f"  {'Stop': <6} | {'Arr':<8} | {'Window':<15} | {'Status'}\n"
             log_text += "  " + "-"*50 + "\n"
             
             # Re-simulate time to get precise arrival details
-            current_time = 480 # 8:00 AM
+            current_time = 20 # 8:00 AM
             curr_loc = problem.depots[route.depot_id].location
             
             for area_id in route.sequence:
@@ -134,7 +134,7 @@ class Visualizer:
                 
                 # Calc distance & time
                 dist = np.sqrt(np.sum((np.array(target_loc) - np.array(curr_loc))**2))
-                # Using 1.5 min per km (assumption from dashboard logic) or using backend speed
+                # Using 1. 5 min per km (assumption from dashboard logic) or using backend speed
                 travel_time = int(dist * 1.5) 
                 arrival = current_time + travel_time
                 
@@ -159,13 +159,13 @@ class Visualizer:
                 arr_s = f"{arrival//60:02d}:{arrival%60:02d}"
                 win_s = f"[{e_win//60:02d}-{l_win//60:02d}]"
                 
-                log_text += f"  Area {area_id:<2} | {arr_s:<8} | {win_s:<15} | {status}\n"
+                log_text += f"  Area {area_id: <2} | {arr_s: <8} | {win_s: <15} | {status}\n"
                 
-                current_time = start_service + int(area.service_time)
+                current_time = start_service + int(area. service_time)
                 curr_loc = target_loc
                 
         log_text += "\n" + "="*60 + "\n"
-        log_text += f"Active Vehicles:  {len(solution.routes)}\n"
+        log_text += f"Active Vehicles:   {len(solution.routes)}\n"
         log_text += f"Total Distance:   {solution.transport_cost / problem.transport_cost_rate:.1f} km\n"
         log_text += f"Operational Cost: {solution.f2_operational_cost:.2f}"
         
@@ -174,23 +174,23 @@ class Visualizer:
 # ============================================================================
 # MAIN_WINDOW.PY - Ana Arayüz
 # ============================================================================
-class DisasterReliefGUI:
+class DisasterReliefGUI: 
     """Ana GUI sınıfı"""
     
     def __init__(self):
-        self.root = tk.Tk()
+        self.root = tk. Tk()
         self.root.title("Disaster Relief Distribution Optimizer")
         self.root.geometry("1400x900")
         
         self.problem = None
-        self.results = {}
+        self. results = {}
         self.selected_algorithms = []
         
         self._create_ui()
         
     def _create_ui(self):
         main_container = ttk.Frame(self.root, padding="10")
-        main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_container.grid(row=0, column=0, sticky=(tk.W, tk. E, tk.N, tk. S))
         
         # Left Panel (Parameters)
         left_panel = ttk.LabelFrame(main_container, text="Control Panel", padding="10")
@@ -203,7 +203,7 @@ class DisasterReliefGUI:
         self._create_parameter_panel(left_panel)
         self._create_results_panel(right_panel)
         
-        self.root.columnconfigure(0, weight=1)
+        self.root. columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_container.columnconfigure(1, weight=2)
         
@@ -211,7 +211,7 @@ class DisasterReliefGUI:
         row = 0
         
         # --- Problem Generation ---
-        ttk.Label(parent, text="PROBLEM SETTINGS", font=('Arial', 9, 'bold')).grid(row=row, column=0, columnspan=2, pady=5)
+        ttk. Label(parent, text="PROBLEM SETTINGS", font=('Arial', 9, 'bold')).grid(row=row, column=0, columnspan=2, pady=5)
         row += 1
         
         # Areas Input
@@ -226,16 +226,23 @@ class DisasterReliefGUI:
         ttk.Entry(parent, textvariable=self.num_depots_var, width=10).grid(row=row, column=1)
         row += 1
 
-        # Vehicle Capacity Input (RESTORED)
-        ttk.Label(parent, text="Veh. Cap:").grid(row=row, column=0, sticky=tk.W)
-        self.vehicle_capacity_var = tk.DoubleVar(value=200)
-        ttk.Entry(parent, textvariable=self.vehicle_capacity_var, width=10).grid(row=row, column=1)
+        # Vehicle Capacity Input
+        ttk.Label(parent, text="Veh. Cap:").grid(row=row, column=0, sticky=tk. W)
+        self.vehicle_capacity_var = tk. DoubleVar(value=200)
+        ttk.Entry(parent, textvariable=self. vehicle_capacity_var, width=10).grid(row=row, column=1)
         row += 1
         
-        ttk.Button(parent, text="1. Generate Problem", command=self._generate_problem).grid(row=row, column=0, columnspan=2, pady=10, sticky="ew")
+        # Generate Problem Button
+        ttk.Button(parent, text="1. Generate Problem", command=self._generate_problem).grid(row=row, column=0, columnspan=2, pady=5, sticky="ew")
         row += 1
         
-        ttk.Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
+        # *** YENİ:  Load Fixed Test Button ***
+        ttk.Button(parent, text="Load Fixed Test", 
+                  command=self._load_fixed_test, 
+                  style="Accent.TButton").grid(row=row, column=0, columnspan=2, pady=5, sticky="ew")
+        row += 1
+        
+        ttk. Separator(parent, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
         row += 1
 
         # --- Algorithms ---
@@ -244,7 +251,7 @@ class DisasterReliefGUI:
         
         self.algo_vars = {}
         algorithms = ['PA-LRP', 'PSO', 'ACO', 'AP']
-        for algo in algorithms:
+        for algo in algorithms: 
             var = tk.BooleanVar(value=(algo == 'PA-LRP'))
             ttk.Checkbutton(parent, text=algo, variable=var).grid(row=row, column=0, columnspan=2, sticky=tk.W)
             self.algo_vars[algo] = var
@@ -263,11 +270,9 @@ class DisasterReliefGUI:
         ttk.Button(parent, text="3. Compare Pareto Fronts", command=self._show_results).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
-        # NEW BUTTON 1: Route Map
         ttk.Button(parent, text="4. Show Route Map", command=self._show_route_map_window).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
-        # NEW BUTTON 2: Schedule Log
         ttk.Button(parent, text="5. Show Schedule Log", command=self._show_schedule_window).grid(row=row, column=0, columnspan=2, pady=2, sticky="ew")
         row += 1
         
@@ -277,10 +282,10 @@ class DisasterReliefGUI:
         
     def _create_results_panel(self, parent):
         self.log_text = scrolledtext.ScrolledText(parent, width=60, height=40, wrap=tk.WORD)
-        self.log_text.pack(fill=tk.BOTH, expand=True)
+        self.log_text. pack(fill=tk.BOTH, expand=True)
         
     def _log(self, message):
-        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.insert(tk. END, message + "\n")
         self.log_text.see(tk.END)
         self.root.update()
         
@@ -290,32 +295,77 @@ class DisasterReliefGUI:
             depot_count = self.num_depots_var.get()
             veh_cap = self.vehicle_capacity_var.get()
 
-            self._log(f"\nGenerating problem: {area_count} Areas, {depot_count} Depots, Cap {veh_cap}...")
+            self._log(f"\nGenerating problem:  {area_count} Areas, {depot_count} Depots, Cap {veh_cap}...")
             
-            self.problem = DisasterReliefProblem.generate_random_instance(
+            self.problem = DisasterReliefProblem. generate_random_instance(
                 num_areas=area_count,
                 num_depots=depot_count,
                 seed=42
             )
             
-            # USE USER INPUT HERE
-            self.problem.vehicle_capacity = veh_cap
+            self. problem.vehicle_capacity = veh_cap
             
-            # Keep the safety buffer for Depots ONLY (not vehicles) to ensure feasibility
-            for d in self.problem.depots: 
+            # Keep the safety buffer for Depots ONLY
+            for d in self. problem.depots: 
                 d.capacity = 300 
             
             self._log("Problem Generated Successfully!")
-            self.progress_var.set("Problem Ready")
+            self. progress_var.set("Problem Ready")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+    
+    # *** YENİ FONKSİYON:  Sabit Test Yükle ***
+    def _load_fixed_test(self):
+        """Sabit test senaryosu:  20 area, 3 depot, 75 kapasite"""
+        try:
+            self._log("\n" + "="*60)
+            self._log("Loading FIXED TEST Scenario...")
+            self._log("Parameters:  20 Areas, 3 Depots, Vehicle Cap:  75")
+            self._log("="*60)
+            
+            # Sabit parametreler
+            fixed_areas = 20
+            fixed_depots = 3
+            fixed_capacity = 75
+            fixed_seed = 42
+            
+            # GUI değerlerini güncelle
+            self.num_areas_var.set(fixed_areas)
+            self.num_depots_var.set(fixed_depots)
+            self.vehicle_capacity_var.set(fixed_capacity)
+            
+            # Problem oluştur (sabit seed ile)
+            self.problem = DisasterReliefProblem. generate_random_instance(
+                num_areas=fixed_areas,
+                num_depots=fixed_depots,
+                seed=fixed_seed
+            )
+            
+            self. problem.vehicle_capacity = fixed_capacity
+            
+            # Depot kapasitelerini ayarla
+            for d in self.problem.depots: 
+                d.capacity = 300
+            
+            self._log("\n✅ Fixed Test Loaded Successfully!")
+            self._log(f"   - Areas: {fixed_areas}")
+            self._log(f"   - Depots: {fixed_depots}")
+            self._log(f"   - Vehicle Capacity: {fixed_capacity}")
+            self._log(f"   - Seed: {fixed_seed}")
+            self._log("\nYou can now run optimization and compare results!")
+            
+            self.progress_var.set("Fixed Test Ready")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load fixed test: {str(e)}")
+            self._log(f"❌ Error: {str(e)}")
     
     def _run_optimization(self):
         if self.problem is None:
             messagebox.showwarning("Warning", "Generate problem first!")
             return
         
-        self.selected_algorithms = [algo for algo, var in self.algo_vars.items() if var.get()]
+        self. selected_algorithms = [algo for algo, var in self.algo_vars. items() if var.get()]
         if not self.selected_algorithms:
             messagebox.showwarning("Warning", "Select an algorithm!")
             return
@@ -324,26 +374,23 @@ class DisasterReliefGUI:
     
     def _run_algorithms_thread(self):
         self.results = {}
-        self.progress_var.set("Optimizing...")
+        self. progress_var.set("Optimizing...")
         
         for algo_name in self.selected_algorithms:
             self._log(f"\nRunning {algo_name}...")
             try:
-                if algo_name == 'PA-LRP':
+                if algo_name == 'PA-LRP': 
                     solver = PALRP(self.problem, num_particles=20)
                     result = solver.solve()
                 elif algo_name == 'ACO':
-                    # Simplified ACO Call
                     try:
                         solver = ACOSolver(self.problem, num_ants=20)
                         front = ParetoFront()
-                        # Run trial
-                        assignments = np.random.randint(0, self.problem.num_depots, self.problem.num_areas)
+                        assignments = np.random.randint(0, self.problem. num_depots, self.problem.num_areas)
                         sol = solver.solve(assignments)
                         front.add(sol)
                         result = front
-                    except:
-                        # Fallback if ACOSolver fails in specific env
+                    except: 
                         result = ParetoFront()
                 elif algo_name == 'PSO':
                     solver = PSOSolver(self.problem, ACOSolver)
@@ -353,37 +400,36 @@ class DisasterReliefGUI:
                     result = solver.solve()
                 
                 self.results[algo_name] = result
-                self._log(f"{algo_name} Done. Solutions: {result.size()}")
+                self._log(f"{algo_name} Done.  Solutions: {result.size()}")
                 
             except Exception as e:
                 self._log(f"Error {algo_name}: {e}")
         
-        self.progress_var.set("Done!")
+        self.progress_var. set("Done!")
         self._log("\nOptimization Complete.")
 
     def _get_best_solution(self):
         """Helper to get the best solution from PA-LRP or first available"""
         target_algo = 'PA-LRP' if 'PA-LRP' in self.results else list(self.results.keys())[0]
-        if target_algo not in self.results or self.results[target_algo].size() == 0:
+        if target_algo not in self.results or self.results[target_algo]. size() == 0:
             return None, None
-        return target_algo, self.results[target_algo].get_solutions()[0]
+        return target_algo, self.results[target_algo]. get_solutions()[0]
 
     def _show_results(self):
         """Pareto Front Comparison"""
-        if not self.results: return
-        Visualizer.plot_pareto_front(self.results).show()
+        if not self.results:  return
+        Visualizer.plot_pareto_front(self. results).show()
 
     def _show_route_map_window(self):
-        if not self.results:
+        if not self.results: 
             messagebox.showwarning("Warning", "Run optimization first.")
             return
 
         algo_name, solution = self._get_best_solution()
         if not solution:
-            messagebox.showerror("Error", "No valid solution found.")
+            messagebox. showerror("Error", "No valid solution found.")
             return
 
-        # Generate the 'Pretty' Square Map
         fig = Visualizer.plot_dashboard_map(self.problem, solution, title=f"Route Map ({algo_name})")
         plt.show()
 
@@ -411,6 +457,6 @@ class DisasterReliefGUI:
     def run(self):
         self.root.mainloop()
         
-if __name__ == "__main__":
+if __name__ == "__main__": 
     app = DisasterReliefGUI()
     app.run()

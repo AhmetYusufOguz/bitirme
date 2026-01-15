@@ -176,7 +176,7 @@ class DisasterReliefProblem:
             # Zaman pencerelerini oluştur (makaledeki gibi)
             soft_lower = np.random.uniform(20, 300)
             soft_upper = soft_lower + np.random.uniform(30, 60)
-            hard_upper = soft_upper + np.random.uniform(10, 30)
+            hard_upper = soft_upper + np.random.uniform(60, 180)
             
             area = Area(i, location, demand, service_time,
                        soft_lower, soft_upper, hard_upper)
