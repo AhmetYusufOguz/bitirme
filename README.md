@@ -302,6 +302,8 @@ python main.py --cli --run-pa-lrp --num-iterations 20
 python main.py --cli --run-pa-lrp
 ```
 
+[![DOI](https://zenodo.org/badge/1107586583.svg)](https://doi.org/10.5281/zenodo.18249142)
+
 ## 📚 Referanslar
 
 Wei, X., Qiu, H., Wang, D., Duan, J., Wang, Y., & Cheng, T. C. E. (2020). 
@@ -319,6 +321,7 @@ Computers & Industrial Engineering, 147, 106632.
 Sorularınız için: [email protected]
 
 ---
+
 
 
 **Not**: Bu proje Gebze Teknik Üniversitesi Bilgisayar Mühendisliği Bölümü bitirme projesidir.

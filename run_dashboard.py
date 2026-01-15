@@ -8,7 +8,6 @@ from algorithms.aco import ACO, ACOSolver
 from core.solution import Solution, Route
 
 # ==========================================
-# PART 1: THE BUG FIX (Monkey Patching)
 # ==========================================
 def patched_construct_routes(self, depot_id: int, assigned_areas: list) -> list:
     routes = []

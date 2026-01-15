@@ -373,41 +373,89 @@ class DisasterReliefGUI:
         Thread(target=self._run_algorithms_thread, daemon=True).start()
     
     def _run_algorithms_thread(self):
+        """Algoritmaları ayrı thread'de çalıştır (GÜNCELLENDİ)"""
         self.results = {}
-        self. progress_var.set("Optimizing...")
+        self.progress_var.set("Running...")
         
         for algo_name in self.selected_algorithms:
-            self._log(f"\nRunning {algo_name}...")
+            self._log(f"\n{'='*60}")
+            self._log(f"Running {algo_name}...")
+            self._log(f"{'='*60}")
+            
             try:
-                if algo_name == 'PA-LRP': 
-                    solver = PALRP(self.problem, num_particles=20)
+                if algo_name == 'PA-LRP':
+                    solver = PALRP(self.problem, num_particles=20, num_pso_iterations=30)
                     result = solver.solve()
+                    
                 elif algo_name == 'ACO':
-                    try:
-                        solver = ACOSolver(self.problem, num_ants=20)
-                        front = ParetoFront()
-                        assignments = np.random.randint(0, self.problem. num_depots, self.problem.num_areas)
-                        sol = solver.solve(assignments)
-                        front.add(sol)
-                        result = front
-                    except: 
-                        result = ParetoFront()
+                    solver = ACOSolver(self.problem, num_ants=20, num_iterations=30)
+                    result = self._run_aco_wrapper(solver) # Wrapper çağırılıyor
+                    
                 elif algo_name == 'PSO':
-                    solver = PSOSolver(self.problem, ACOSolver)
+                    solver = PSOSolver(self.problem, ACOSolver, num_particles=20, num_iterations=30)
                     result = solver.solve()
+                    
                 elif algo_name == 'AP':
-                    solver = AP(self.problem)
+                    solver = AP(self.problem, num_iterations=30)
                     result = solver.solve()
                 
                 self.results[algo_name] = result
-                self._log(f"{algo_name} Done.  Solutions: {result.size()}")
+                
+                # --- GÜNCELLENMİŞ İSTATİSTİK BLOĞU ---
+                if result.size() > 0:
+                    # En iyi (en düşük maliyetli) çözümü seç
+                    solutions = result.get_solutions()
+                    best_sol = min(solutions, key=lambda s: s.f2_operational_cost)
+                    
+                    # İstatistikler
+                    active_vehicles = len(best_sol.routes)
+                    cost_rate = getattr(self.problem, 'transport_cost_rate', 0.01) 
+                    total_dist = best_sol.transport_cost / cost_rate
+                    op_cost = best_sol.f2_operational_cost
+                    pareto_size = result.size() # Kaç çözüm bulunduğu
+                    
+                    # Loga Yazdır
+                    self._log("-" * 40)
+                    self._log(f"  [BEST RESULT FOR {algo_name}]")
+                    self._log(f"  > Solutions Found : {pareto_size}") # YENİ SATIR
+                    self._log(f"  > Active Vehicles : {active_vehicles}")
+                    self._log(f"  > Total Distance  : {total_dist:.1f} km")
+                    self._log(f"  > Operational Cost: {op_cost:.2f}")
+                    self._log("-" * 40)
+                else:
+                    self._log(f"{algo_name} çözüm bulamadı.")
+                # ------------------------------------------------
                 
             except Exception as e:
-                self._log(f"Error {algo_name}: {e}")
+                import traceback
+                traceback.print_exc()
+                self._log(f"ERROR in {algo_name}: {str(e)}")
         
-        self.progress_var. set("Done!")
-        self._log("\nOptimization Complete.")
+        self.progress_var.set("Optimization Complete!")
+        self._log("\n" + "="*60)
+        self._log("All algorithms completed!")
+        self._log("="*60)
 
+        
+    def _run_aco_wrapper(self, solver):
+        """
+        ACO için wrapper (çok sayıda rastgele atama dener).
+        Bu fonksiyon DisasterReliefGUI sınıfının içinde olmalıdır.
+        """
+        from core.solution import ParetoFront
+        import numpy as np
+        
+        front = ParetoFront()
+        # ACO tek başına depo seçemediği için ona 10 farklı rastgele senaryo veriyoruz
+        for _ in range(10):
+            # Rastgele depo ataması yap
+            assignments = np.random.randint(0, self.problem.num_depots, self.problem.num_areas)
+            # Çöz
+            solution = solver.solve(assignments)
+            front.add(solution)
+            
+        return front
+    
     def _get_best_solution(self):
         """Helper to get the best solution from PA-LRP or first available"""
         target_algo = 'PA-LRP' if 'PA-LRP' in self.results else list(self.results.keys())[0]

@@ -22,6 +22,7 @@ class SimpleRouteOptimizer:
     def optimize_route(self, depot_id: int, areas: List[int]) -> List[Route]:
         """
         Verilen bölgeler için basit greedy rota oluştur
+        (GÜVENLİK YAMALI VERSİYON)
         """
         if len(areas) == 0:
             return []
@@ -32,7 +33,17 @@ class SimpleRouteOptimizer:
         
         depot_node = depot_id
         
+        # GÜVENLİK: Sonsuz döngü sayacı
+        max_attempts = len(areas) * 2
+        attempts = 0
+        
         while unvisited:
+            attempts += 1
+            # Eğer makul deneme sayısını geçersek döngüyü kır
+            if attempts > max_attempts:
+                print(f"AP UYARI: Sonsuz döngü engellendi. Kalan {len(unvisited)} bölge atlandı.")
+                break
+
             route = Route(depot_id=depot_id, vehicle_id=vehicle_id)
             current_node = depot_node
             current_load = 0.0
@@ -67,6 +78,13 @@ class SimpleRouteOptimizer:
                 route = self._calculate_metrics(route)
                 routes.append(route)
                 vehicle_id += 1
+            else:
+                # KRİTİK EKLENTİ:
+                # Yeni kamyon açtık ama hiçbir yere gidemedi.
+                # Demek ki kalan müşteriler "imkansız".
+                # Sonsuz döngüyü kırmak için birini zorla listeden at.
+                if unvisited:
+                    unvisited.pop()
         
         return routes
     
