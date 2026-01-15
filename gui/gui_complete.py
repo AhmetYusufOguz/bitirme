@@ -196,6 +196,7 @@ class DisasterReliefGUI:
         self.problem = None
         self. results = {}
         self.selected_algorithms = []
+        self.current_best_solution = None
         
         self._create_ui()
         
