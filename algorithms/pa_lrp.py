@@ -88,7 +88,7 @@ class PALRP:
         
         # Ana optimizasyon döngüsü
         for iteration in range(self.pso.num_iterations):
-            print(f"\n--- PSO Iteration {iteration + 1}/{self.pso.num_iterations} ---")
+            print(f"\n--- PA-LRP Iteration {iteration + 1}/{self.pso.num_iterations} ---")
             
             iteration_best_f1 = float('inf')
             iteration_best_f2 = float('inf')

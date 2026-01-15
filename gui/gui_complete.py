@@ -107,13 +107,23 @@ class Visualizer:
     @staticmethod
     def generate_schedule_text(problem, solution):
         """Generates the detailed formatted text log for the schedule window"""
+        
+        # --- YENİ EKLENEN KISIM: ALGORİTMA VE ÇÖZÜM BİLGİSİ ---
+        # Eğer çözüm nesnesinde etiket varsa onu al, yoksa varsayılan yaz
+        algo_name = getattr(solution, 'algo_name', 'Unknown')
+        pareto_count = getattr(solution, 'pareto_size_found', '?')
+
         log_text = "OPTIMIZED DELIVERY SCHEDULE\n"
+        log_text += f"ALGORITHM: {algo_name}\n"
+        log_text += f"SOLUTIONS FOUND: {pareto_count}\n"
         log_text += "="*60 + "\n"
+        # -----------------------------------------------------
         
         if not solution.routes:
             return log_text + "\nNo feasible solution found."
 
-        sorted_routes = sorted(solution.routes, key=lambda r: r. depot_id)
+        # Yazım hatası düzeltildi: 'r. depot_id' -> 'r.depot_id'
+        sorted_routes = sorted(solution.routes, key=lambda r: r.depot_id)
         
         for i, route in enumerate(sorted_routes):
             if route.is_empty(): continue
@@ -125,7 +135,8 @@ class Visualizer:
             log_text += "  " + "-"*50 + "\n"
             
             # Re-simulate time to get precise arrival details
-            current_time = 20 # 8:00 AM
+            # Senin kodundaki özel başlangıç saati
+            current_time = 20 
             curr_loc = problem.depots[route.depot_id].location
             
             for area_id in route.sequence:
@@ -134,7 +145,7 @@ class Visualizer:
                 
                 # Calc distance & time
                 dist = np.sqrt(np.sum((np.array(target_loc) - np.array(curr_loc))**2))
-                # Using 1. 5 min per km (assumption from dashboard logic) or using backend speed
+                # Senin kodundaki özel hız mantığı (1.5 min per km)
                 travel_time = int(dist * 1.5) 
                 arrival = current_time + travel_time
                 
@@ -161,7 +172,8 @@ class Visualizer:
                 
                 log_text += f"  Area {area_id: <2} | {arr_s: <8} | {win_s: <15} | {status}\n"
                 
-                current_time = start_service + int(area. service_time)
+                # Yazım hatası düzeltildi: 'area. service_time' -> 'area.service_time'
+                current_time = start_service + int(area.service_time)
                 curr_loc = target_loc
                 
         log_text += "\n" + "="*60 + "\n"
@@ -170,7 +182,6 @@ class Visualizer:
         log_text += f"Operational Cost: {solution.f2_operational_cost:.2f}"
         
         return log_text
-
 # ============================================================================
 # MAIN_WINDOW.PY - Ana Arayüz
 # ============================================================================
@@ -373,70 +384,109 @@ class DisasterReliefGUI:
         Thread(target=self._run_algorithms_thread, daemon=True).start()
     
     def _run_algorithms_thread(self):
-        """Algoritmaları ayrı thread'de çalıştır (GÜNCELLENDİ)"""
+        """Akıllı Kıyaslama: Maliyet yakınsa Çözüm Sayısına bakar"""
         self.results = {}
         self.progress_var.set("Running...")
         
+        # Takip değişkenleri
+        global_best_solution = None
+        global_best_cost = float('inf')
+        global_best_pareto_size = 0
+        global_best_algo_name = ""
+
         for algo_name in self.selected_algorithms:
             self._log(f"\n{'='*60}")
             self._log(f"Running {algo_name}...")
             self._log(f"{'='*60}")
             
             try:
+                # --- ALGORİTMA ÇALIŞTIRMA KISMI (AYNI) ---
                 if algo_name == 'PA-LRP':
                     solver = PALRP(self.problem, num_particles=20, num_pso_iterations=30)
                     result = solver.solve()
-                    
                 elif algo_name == 'ACO':
                     solver = ACOSolver(self.problem, num_ants=20, num_iterations=30)
-                    result = self._run_aco_wrapper(solver) # Wrapper çağırılıyor
-                    
+                    result = self._run_aco_wrapper(solver)
                 elif algo_name == 'PSO':
                     solver = PSOSolver(self.problem, ACOSolver, num_particles=20, num_iterations=30)
                     result = solver.solve()
-                    
                 elif algo_name == 'AP':
                     solver = AP(self.problem, num_iterations=30)
                     result = solver.solve()
                 
                 self.results[algo_name] = result
                 
-                # --- GÜNCELLENMİŞ İSTATİSTİK BLOĞU ---
                 if result.size() > 0:
-                    # En iyi (en düşük maliyetli) çözümü seç
                     solutions = result.get_solutions()
-                    best_sol = min(solutions, key=lambda s: s.f2_operational_cost)
+                    # Bu algoritmanın en iyi maliyetli çözümünü bul
+                    best_sol_of_algo = min(solutions, key=lambda s: s.f2_operational_cost)
+                    
+                    # --- ÇÖZÜME ETİKET YAPIŞTIR (Logda göstermek için) ---
+                    best_sol_of_algo.algo_name = algo_name
+                    best_sol_of_algo.pareto_size_found = result.size()
                     
                     # İstatistikler
-                    active_vehicles = len(best_sol.routes)
+                    active_vehicles = len(best_sol_of_algo.routes)
                     cost_rate = getattr(self.problem, 'transport_cost_rate', 0.01) 
-                    total_dist = best_sol.transport_cost / cost_rate
-                    op_cost = best_sol.f2_operational_cost
-                    pareto_size = result.size() # Kaç çözüm bulunduğu
+                    total_dist = best_sol_of_algo.transport_cost / cost_rate
+                    op_cost = best_sol_of_algo.f2_operational_cost
+                    pareto_size = result.size()
                     
-                    # Loga Yazdır
                     self._log("-" * 40)
                     self._log(f"  [BEST RESULT FOR {algo_name}]")
-                    self._log(f"  > Solutions Found : {pareto_size}") # YENİ SATIR
+                    self._log(f"  > Solutions Found : {pareto_size}")
                     self._log(f"  > Active Vehicles : {active_vehicles}")
                     self._log(f"  > Total Distance  : {total_dist:.1f} km")
                     self._log(f"  > Operational Cost: {op_cost:.2f}")
                     self._log("-" * 40)
+
+                    # --- AKILLI KIYASLAMA MANTIĞI ---
+                    is_new_winner = False
+                    
+                    # Durum 1: Henüz hiç lider yoksa
+                    if global_best_solution is None:
+                        is_new_winner = True
+                    
+                    # Durum 2: Yeni çözüm BELİRGİN şekilde daha ucuzsa (Fark > 0.5)
+                    elif (global_best_cost - op_cost) > 0.5:
+                        is_new_winner = True
+                        print(f"   -> {algo_name} took lead by COST ({op_cost:.2f} < {global_best_cost:.2f})")
+                        
+                    # Durum 3: Maliyetler ÇOK YAKINSA (Fark < 0.5), PARETO SIZE'a bak
+                    elif abs(global_best_cost - op_cost) <= 0.5:
+                        if pareto_size > global_best_pareto_size:
+                            is_new_winner = True
+                            print(f"   -> {algo_name} took lead by DIVERSITY ({pareto_size} > {global_best_pareto_size} solutions)")
+
+                    # EĞER KAZANDIYSA GÜNCELLE
+                    if is_new_winner:
+                        global_best_cost = op_cost
+                        global_best_solution = best_sol_of_algo
+                        global_best_pareto_size = pareto_size
+                        global_best_algo_name = algo_name
+                        
+                        # EKRANI GÜNCELLE (Hata korumalı)
+                        try:
+                            if hasattr(self, 'visualizer'):
+                                self.root.after(0, lambda s=global_best_solution: self.visualizer.update(s))
+                        except:
+                            pass
+
                 else:
                     self._log(f"{algo_name} çözüm bulamadı.")
-                # ------------------------------------------------
                 
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 self._log(f"ERROR in {algo_name}: {str(e)}")
         
-        self.progress_var.set("Optimization Complete!")
+        self.progress_var.set(f"Done! Winner: {global_best_algo_name}")
         self._log("\n" + "="*60)
-        self._log("All algorithms completed!")
+        self._log(f"Optimization Complete! Winner is: {global_best_algo_name}")
+        self._log(f"(Selected because Cost={global_best_cost:.2f} and ParetoSize={global_best_pareto_size})")
         self._log("="*60)
 
-        
+
     def _run_aco_wrapper(self, solver):
         """
         ACO için wrapper (çok sayıda rastgele atama dener).
